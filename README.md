@@ -98,7 +98,7 @@ Dynamic ui project.
     -   `elevation`: Altezza dell'ombra sotto l'AppBar, per un effetto di profondità (es. `4.0`).
     -   `centerTitle`: Allinea il titolo al centro (`true`/`false`).
     -   `toolbarHeight`: Altezza fissa della toolbar (es. `65.0`).
-    -   - **Elementi Figli (Contenuti):**
+    -   **Elementi Figli (Contenuti):**
       -   **Titolo (`Text`):**
         -   Un tag `Text` con le sue proprietà, posizionato come primo figlio.
         -   Esempio: `<Text text="Mio Titolo" fontSize="20" color="#FFFFFF" />`
