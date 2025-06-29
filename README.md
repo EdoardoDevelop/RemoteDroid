@@ -105,30 +105,30 @@ Dynamic ui project.
         -   **Widget Principale (`leading`):**
         -   Contenitore per un singolo widget a sinistra (es. icona menu, pulsante indietro).
         -   Esempio:
-        ```xml
-        <leading>
-          <Icon icon="Icons.menu" color="#FFFFFF" size="24" />
-        </leading>
-        ```
-        -   **Azioni (`actions`):**
-        -   Contenitore per una lista di widget a destra (es. pulsanti icona).
-        -   Esempio:
-        ```xml
-        <actions>
-          <IconButton icon="Icons.search" color="#FFFFFF" size="24" />
-          <IconButton icon="Icons.more_vert" color="#FFFFFF" size="24" />
-        </actions>
-        ```
-        -   **Esempio XML Completo:**
-        ```xml
-        <appBar backgroundColor="#1E88E5" elevation="8.0" centerTitle="true" toolbarHeight="65.0">
-          <Text text="La Mia App Dinamica" fontSize="22" color="#FFFFFF" fontWeight="bold" />
-          <leading>
-            <Icon icon="Icons.menu" color="#FFFFFF" size="28" />
-          </leading>
-          <actions>
-            <IconButton icon="Icons.notifications" color="#FFFFFF" size="26" />
-            <IconButton icon="Icons.settings" color="#FFFFFF" size="26" />
-          </actions>
-        </appBar>
-        ```
+    ```xml
+    <leading>
+      <Icon icon="Icons.menu" color="#FFFFFF" size="24" />
+    </leading>
+    ```
+    -   **Azioni (`actions`):**
+    -   Contenitore per una lista di widget a destra (es. pulsanti icona).
+    -   Esempio:
+    ```xml
+    <actions>
+      <IconButton icon="Icons.search" color="#FFFFFF" size="24" />
+      <IconButton icon="Icons.more_vert" color="#FFFFFF" size="24" />
+    </actions>
+    ```
+    -   **Esempio XML Completo:**
+    ```xml
+    <appBar backgroundColor="#1E88E5" elevation="8.0" centerTitle="true" toolbarHeight="65.0">
+      <Text text="La Mia App Dinamica" fontSize="22" color="#FFFFFF" fontWeight="bold" />
+      <leading>
+        <Icon icon="Icons.menu" color="#FFFFFF" size="28" />
+      </leading>
+      <actions>
+        <IconButton icon="Icons.notifications" color="#FFFFFF" size="26" />
+        <IconButton icon="Icons.settings" color="#FFFFFF" size="26" />
+      </actions>
+    </appBar>
+    ```
