@@ -104,7 +104,7 @@ Dynamic ui project.
         -   Esempio: `<Text text="Mio Titolo" fontSize="20" color="#FFFFFF" />`
         -   **Widget Principale (`leading`):**
         -   Contenitore per un singolo widget a sinistra (es. icona menu, pulsante indietro).
-          -   Esempio:
+        -   Esempio:
     ```xml
     <leading>
       <Icon icon="Icons.menu" color="#FFFFFF" size="24" />
