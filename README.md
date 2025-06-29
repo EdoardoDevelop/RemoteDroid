@@ -132,6 +132,8 @@ Dynamic ui project.
       </actions>
     </appBar>
     ```
+    
+## Actions
 -   **Sistema di Azioni Dinamiche della UI**
     -   L'applicazione implementa un robusto sistema di interfaccia utente (UI) dinamica, definita tramite configurazioni XML, permettendo di gestire elementi interattivi e le loro funzionalità direttamente dal markup.
     -   **Come Funzionano le Azioni:**
