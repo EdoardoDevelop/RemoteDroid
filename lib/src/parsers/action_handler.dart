@@ -19,6 +19,7 @@ class ActionHandler {
   ActionHandler(this.context) : secureStorage = const FlutterSecureStorage();
 
   void handleAction(WidgetAction action, [Map<String, dynamic>? params]) {
+    if (kDebugMode) print('DEBUG - Handling action: $action with params: $params');
     switch (action) {
       case WidgetAction.showAlert:
         _showAlert(params);

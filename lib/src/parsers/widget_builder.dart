@@ -1268,103 +1268,111 @@ static Widget _buildRow(Map<String, dynamic> properties, BuildContext context) {
 
   static Widget _buildIconButton(Map<String, dynamic> properties, BuildContext context) {
     if (kDebugMode) {
-      print('DEBUG _buildIconButton: Tentativo di costruire con proprietà: $properties');
+      print('DEBUG _buildIconButton: Inizio costruzione con proprietà: $properties');
     }
-
     try {
-      // Gestione della mappa properties che potrebbe essere null
-      // Anche se il check `properties = properties['properties'];` dovrebbe aver risolto,
-      // mantenere questo controllo iniziale è una buona pratica difensiva.
-      if (properties == null) {
-        if (kDebugMode) print('ERRORE _buildIconButton: La mappa delle proprietà è null.');
+      // Validate properties
+      if (properties == null) { // Questo check è ridondante se il parametro è Map<String, dynamic>
+        if (kDebugMode) print('ERRORE _buildIconButton: properties map is null for IconButton.');
         return const SizedBox.shrink();
       }
 
-      // --- Estrazione e Validazione delle Proprietà ---
+      // Extract properties
+      final onPressedString = properties['onPressed'];
+      // Reso più robusto: se onPressedString non è una stringa, stampa errore e ritorna SizedBox.shrink.
+      // Questo è il comportamento che avevi e che genera l'errore se onPressed è mancante nell'XML.
+      if (onPressedString == null || !(onPressedString is String)) {
+        if (kDebugMode) print('ERRORE _buildIconButton: onPressed is missing or is not a string for IconButton.');
+        return const SizedBox.shrink();
+      }
 
-      // 1. onPressed: Reso opzionale. Se non presente o non stringa, onPressedCallback sarà null.
-      final onPressedString = properties['onPressed'] as String?; // Cast a String? per null-safety
-      VoidCallback? onPressedCallback; // Inizializza la callback a null
+      final iconName = properties['icon'];
+      if (iconName == null || !(iconName is String)) {
+        if (kDebugMode) print('ERRORE _buildIconButton: icon is missing or is not a string for IconButton.');
+        return const SizedBox.shrink();
+      }
 
-      if (onPressedString != null && onPressedString.isNotEmpty) {
-        WidgetAction? action;
-        try {
-          action = WidgetAction.values.firstWhere(
-                (e) => e.toString().split('.').last == onPressedString,
-          );
-          final actionParams = properties['actionParams'] as Map<String, dynamic>?;
-          final actionHandler = ActionHandler(context); // Inizializza qui se necessario
+      // Qui cerchi 'iconColor'. Assicurati che l'XML per IconButton usi 'iconColor' e non 'color'.
+      final iconColor = _parseColor(properties['iconColor'] as String?) ?? Colors.black;
+      final size = double.tryParse(properties['size']?.toString() ?? '24') ?? 24;
 
-          onPressedCallback = () {
-            try {
-              actionHandler.handleAction(action!, actionParams); // `action!` è sicuro qui grazie al check `action != null`
-              if (kDebugMode) print('DEBUG _buildIconButton: Azione "$onPressedString" eseguita.');
-            } catch (e, st) {
-              if (kDebugMode) {
-                print('ERRORE _buildIconButton: Errore durante esecuzione azione per "$onPressedString": $e');
-                print(st);
-              }
-            }
-          };
-          if (kDebugMode) print('DEBUG _buildIconButton: Azione onPressed parsata: $onPressedString');
-        } catch (e) {
-          if (kDebugMode) print('WARNING _buildIconButton: Azione non supportata "$onPressedString" per IconButton. $e');
-          // onPressedCallback rimane null, rendendo il pulsante disabilitato
+      // --- CORREZIONE QUI: Parsare la stringa JSON per actionParams ---
+      Map<String, dynamic>? actionParams;
+      final dynamic rawActionParams = properties['actionParams'];
+
+      if (rawActionParams != null) {
+        if (rawActionParams is String) {
+          try {
+            actionParams = json.decode(rawActionParams) as Map<String, dynamic>;
+            if (kDebugMode) print('DEBUG _buildIconButton: actionParams parsati correttamente: $actionParams');
+          } catch (e) {
+            if (kDebugMode) print('ERRORE _buildIconButton: Impossibile parsare actionParams come JSON: "$rawActionParams" - $e');
+            actionParams = null; // Imposta a null se il parsing fallisce
+          }
+        } else if (rawActionParams is Map<String, dynamic>) {
+          // Questo caso si applica se actionParams è già una Map (es. in debug/test diretti)
+          actionParams = rawActionParams;
+        } else {
+          if (kDebugMode) print('WARNING _buildIconButton: actionParams ha un tipo inatteso: ${rawActionParams.runtimeType}');
         }
-      } else {
-        if (kDebugMode) print('DEBUG _buildIconButton: Nessuna azione "onPressed" specificata o valida, IconButton sarà disabilitato.');
       }
 
 
-      // 2. icon: Obbligatorio. Se mancante, ritorniamo un widget vuoto o di errore.
-      final iconName = properties['icon'] as String?;
-      if (iconName == null || iconName.isEmpty) {
-        if (kDebugMode) print('ERRORE _buildIconButton: Nome icona mancante o vuoto.');
-        return const SizedBox.shrink();
+      // Convert the onPressed string to a WidgetAction
+      WidgetAction? action;
+      try {
+        action = WidgetAction.values.firstWhere(
+              (e) => e.toString().split('.').last == onPressedString,
+        );
+        if (kDebugMode) print('DEBUG _buildIconButton: Azione parsata: $action');
+      } catch (e) {
+        if (kDebugMode) print('WARNING _buildIconButton: Unsupported action "$onPressedString" for IconButton. $e');
+        action = null; // L'azione non è stata trovata nell'enum
       }
 
-      // Parsing di IconData
+      // Initialize the ActionHandler
+      final actionHandler = ActionHandler(context);
+
+      // Parse IconData
       final IconData iconData;
       try {
-        iconData = _parseIconData(iconName);
-        if (kDebugMode) print('DEBUG _buildIconButton: IconData parsata: $iconData da "$iconName"');
+        iconData = _parseIconData(iconName as String); // Cast a String è più sicuro qui
+        if (kDebugMode) print('DEBUG _buildIconButton: IconData ottenuta: $iconData da "$iconName"');
       } catch (e, st) {
         if (kDebugMode) {
           print('ERRORE _buildIconButton: Errore nel parsing IconData per "$iconName": $e');
           print(st);
         }
-        return const Icon(Icons.error_outline, color: Colors.red); // Icona di errore visibile
-      }
-
-      // 3. iconColor: Opzionale. Fallback a Colors.black.
-      // Ho mantenuto 'iconColor' come nome della proprietà che viene cercata.
-      // Assicurati che l'XML utilizzi 'iconColor' e non 'color'.
-      final iconColor = _parseColor(properties['iconColor']) ?? Colors.black;
-      if (kDebugMode) print('DEBUG _buildIconButton: Colore icona parsato: $iconColor (input XML: ${properties['iconColor']})');
-
-      // 4. size: Opzionale. Fallback a 24.0.
-      final size = double.tryParse(properties['size']?.toString() ?? '') ?? 24.0;
-      if (kDebugMode) print('DEBUG _buildIconButton: Dimensione icona parsata: $size (input XML: ${properties['size']})');
-
-      // --- Costruzione del Widget ---
-      final builtIcon = Icon(iconData, color: iconColor, size: size);
-      if (kDebugMode) {
-        print('DEBUG _buildIconButton: Icona interna costruita: $builtIcon');
+        return const Icon(Icons.error); // Icona di errore visibile
       }
 
       return IconButton(
-        icon: builtIcon,
-        onPressed: onPressedCallback, // Sarà null se l'azione non è valida, disabilitando il pulsante
-        // Puoi aggiungere altre proprietà di IconButton qui, ad esempio un tooltip:
-        // tooltip: properties['tooltip'] as String?,
+        icon: Icon(iconData, color: iconColor, size: size),
+        // L'onPressed rimane una funzione anonima che gestisce l'azione parsata.
+        onPressed: () {
+          try {
+            if (action != null) {
+              actionHandler.handleAction(action, actionParams);
+            } else {
+              if (kDebugMode) print('DEBUG _buildIconButton: Nessuna azione valida per onPressed, non eseguito.');
+            }
+          } catch (e, st) {
+            if (kDebugMode) {
+              print('ERRORE _buildIconButton: Errore durante esecuzione onPressed function per IconButton: $e');
+              print(st);
+            }
+          }
+        },
       );
     } catch (e, st) {
+      // Questo catch generale cattura errori inaspettati nella costruzione del pulsante.
       if (kDebugMode) {
-        print('!!! ERRORE CRITICO _buildIconButton: Fallimento totale costruzione IconButton: $e');
-        print(st); // Stampa lo stack trace completo per debugging
+        print('!!! ERRORE CRITICO _buildIconButton: Errore generale nella costruzione di IconButton: $e');
+        print(st);
       }
-      // In caso di errore critico, restituisci un widget di errore molto visibile
-      return const Icon(Icons.bug_report, color: Colors.purple, size: 48);
+      return const SizedBox.shrink(); // Ritorna un widget vuoto in caso di errore critico
+    } finally {
+      if (kDebugMode) print('DEBUG _buildIconButton: Fine costruzione IconButton.');
     }
   }
 
