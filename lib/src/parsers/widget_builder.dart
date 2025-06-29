@@ -1265,74 +1265,109 @@ static Widget _buildRow(Map<String, dynamic> properties, BuildContext context) {
       }
     }
 
-    static Widget _buildIconButton(Map<String, dynamic> properties, BuildContext context) {
-      try {
-        // Validate properties
-        if (properties == null) {
-          print('Error: properties map is null for IconButton');
-          return const SizedBox.shrink();
-        }
 
-        // Extract properties
-        final onPressedString = properties['onPressed'];
-        if (onPressedString == null || !(onPressedString is String)) {
-          print('Error: onPressed is missing or is not a string for IconButton');
-          return const SizedBox.shrink();
-        }
+  static Widget _buildIconButton(Map<String, dynamic> properties, BuildContext context) {
+    if (kDebugMode) {
+      print('DEBUG _buildIconButton: Tentativo di costruire con proprietà: $properties');
+    }
 
-        final iconName = properties['icon'];
-        if (iconName == null || !(iconName is String)) {
-          print('Error: icon is missing or is not a string for IconButton');
-          return const SizedBox.shrink();
-        }
+    try {
+      // Gestione della mappa properties che potrebbe essere null
+      // Anche se il check `properties = properties['properties'];` dovrebbe aver risolto,
+      // mantenere questo controllo iniziale è una buona pratica difensiva.
+      if (properties == null) {
+        if (kDebugMode) print('ERRORE _buildIconButton: La mappa delle proprietà è null.');
+        return const SizedBox.shrink();
+      }
 
-        final iconColor = _parseColor(properties['iconColor']) ?? Colors.black;
-        final size = double.tryParse(properties['size']?.toString() ?? '24') ?? 24;
+      // --- Estrazione e Validazione delle Proprietà ---
 
-        // Parse action parameters
-        final actionParams = properties['actionParams'] as Map<String, dynamic>?;
+      // 1. onPressed: Reso opzionale. Se non presente o non stringa, onPressedCallback sarà null.
+      final onPressedString = properties['onPressed'] as String?; // Cast a String? per null-safety
+      VoidCallback? onPressedCallback; // Inizializza la callback a null
 
-        // Convert the onPressed string to a WidgetAction
-         // Convert the onPressed string to a WidgetAction
+      if (onPressedString != null && onPressedString.isNotEmpty) {
         WidgetAction? action;
         try {
           action = WidgetAction.values.firstWhere(
-            (e) => e.toString().split('.').last == onPressedString,
+                (e) => e.toString().split('.').last == onPressedString,
           );
-        } catch (e) {
-          print('Unsupported action "$onPressedString" for IconButton');
-          action = null;
-        }
+          final actionParams = properties['actionParams'] as Map<String, dynamic>?;
+          final actionHandler = ActionHandler(context); // Inizializza qui se necessario
 
-        // Initialize the ActionHandler
-        final actionHandler = ActionHandler(context);
-
-        // Parse IconData
-        final IconData iconData;
-        try {
-          iconData = _parseIconData(iconName);
-        } catch (e) {
-          print('Error parsing icon data for IconButton: $e');
-          return const Icon(Icons.error);
-        }
-
-        return IconButton(
-          icon: Icon(iconData, color: iconColor, size: size),
-          onPressed: () {
+          onPressedCallback = () {
             try {
-              if (action != null) {
-                actionHandler.handleAction(action, actionParams);
+              actionHandler.handleAction(action!, actionParams); // `action!` è sicuro qui grazie al check `action != null`
+              if (kDebugMode) print('DEBUG _buildIconButton: Azione "$onPressedString" eseguita.');
+            } catch (e, st) {
+              if (kDebugMode) {
+                print('ERRORE _buildIconButton: Errore durante esecuzione azione per "$onPressedString": $e');
+                print(st);
               }
-            } catch (e) {
-              print('Error executing onPressed function for IconButton: $e');
             }
-          },
-        );
-      } catch (e) {
-        print('Error building IconButton: $e');
+          };
+          if (kDebugMode) print('DEBUG _buildIconButton: Azione onPressed parsata: $onPressedString');
+        } catch (e) {
+          if (kDebugMode) print('WARNING _buildIconButton: Azione non supportata "$onPressedString" per IconButton. $e');
+          // onPressedCallback rimane null, rendendo il pulsante disabilitato
+        }
+      } else {
+        if (kDebugMode) print('DEBUG _buildIconButton: Nessuna azione "onPressed" specificata o valida, IconButton sarà disabilitato.');
+      }
+
+
+      // 2. icon: Obbligatorio. Se mancante, ritorniamo un widget vuoto o di errore.
+      final iconName = properties['icon'] as String?;
+      if (iconName == null || iconName.isEmpty) {
+        if (kDebugMode) print('ERRORE _buildIconButton: Nome icona mancante o vuoto.');
         return const SizedBox.shrink();
       }
+
+      // Parsing di IconData
+      final IconData iconData;
+      try {
+        iconData = _parseIconData(iconName);
+        if (kDebugMode) print('DEBUG _buildIconButton: IconData parsata: $iconData da "$iconName"');
+      } catch (e, st) {
+        if (kDebugMode) {
+          print('ERRORE _buildIconButton: Errore nel parsing IconData per "$iconName": $e');
+          print(st);
+        }
+        return const Icon(Icons.error_outline, color: Colors.red); // Icona di errore visibile
+      }
+
+      // 3. iconColor: Opzionale. Fallback a Colors.black.
+      // Ho mantenuto 'iconColor' come nome della proprietà che viene cercata.
+      // Assicurati che l'XML utilizzi 'iconColor' e non 'color'.
+      final iconColor = _parseColor(properties['iconColor']) ?? Colors.black;
+      if (kDebugMode) print('DEBUG _buildIconButton: Colore icona parsato: $iconColor (input XML: ${properties['iconColor']})');
+
+      // 4. size: Opzionale. Fallback a 24.0.
+      final size = double.tryParse(properties['size']?.toString() ?? '') ?? 24.0;
+      if (kDebugMode) print('DEBUG _buildIconButton: Dimensione icona parsata: $size (input XML: ${properties['size']})');
+
+      // --- Costruzione del Widget ---
+      final builtIcon = Icon(iconData, color: iconColor, size: size);
+      if (kDebugMode) {
+        print('DEBUG _buildIconButton: Icona interna costruita: $builtIcon');
+      }
+
+      return IconButton(
+        icon: builtIcon,
+        onPressed: onPressedCallback, // Sarà null se l'azione non è valida, disabilitando il pulsante
+        // Puoi aggiungere altre proprietà di IconButton qui, ad esempio un tooltip:
+        // tooltip: properties['tooltip'] as String?,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        print('!!! ERRORE CRITICO _buildIconButton: Fallimento totale costruzione IconButton: $e');
+        print(st); // Stampa lo stack trace completo per debugging
+      }
+      // In caso di errore critico, restituisci un widget di errore molto visibile
+      return const Icon(Icons.bug_report, color: Colors.purple, size: 48);
     }
+  }
+
 
     static Widget _buildFloatingActionButton(Map<String, dynamic> properties, BuildContext context) {
       try {
@@ -1591,7 +1626,7 @@ static Widget _buildChild(Map<String, dynamic> childProperties, BuildContext con
       return _buildSingleChildScrollView(childProperties, context);
     case 'Scaffold':
       return _buildScaffold(childProperties, context);
-    case 'AppBar':
+    case 'appBar':
       return _buildAppBar(childProperties, context);
     default:
       return const Icon(Icons.error); // Return an error icon for unsupported child types
@@ -2196,30 +2231,6 @@ static Widget _buildPositioned(Map<String, dynamic> properties, BuildContext con
   }
 }
 
-
-
-
-
-
-  // static Widget _buildRotatedBox(Map<String, dynamic> properties, BuildContext context) {
-  //   try {
-  //     return RotatedBox(
-  //       quarterTurns:
-  //           int.tryParse(properties['quarterTurns']?.toString() ?? '0') ?? 0,
-  //       child: properties['children'] != null
-  //           ? Column(children: _buildChildren(properties['children'], context))
-  //           : null,
-  //     );
-  //   } catch (e) {
-  //     // Return a placeholder in case of an error
-  //     print('Error building RotatedBox widget: $e');
-  //     return const RotatedBox(
-  //       quarterTurns: 0,
-  //       child: SizedBox.shrink(), // Fallback if the RotatedBox fails to build
-  //     );
-  //   }
-  // }
-
   static Widget _buildConstrainedBox(Map<String, dynamic> properties, BuildContext context) {
     try {
       return ConstrainedBox(
@@ -2248,11 +2259,6 @@ static Widget _buildPositioned(Map<String, dynamic> properties, BuildContext con
       );
     }
   }
-
-
-
-
-
 
   static Widget _buildUnconstrainedBox(Map<String, dynamic> properties, BuildContext context) {
     try {
@@ -2284,10 +2290,6 @@ static Widget _buildPositioned(Map<String, dynamic> properties, BuildContext con
       return const Expanded(child: SizedBox.shrink()); // Fallback if the Expanded fails to build
     }
   }
-
-
-
-
 
 static Widget _buildScaffold(Map<String, dynamic> properties, BuildContext context) {
   if (kDebugMode) {
@@ -2381,10 +2383,23 @@ static Widget _buildScaffold(Map<String, dynamic> properties, BuildContext conte
                 if (kDebugMode) print('DEBUG _buildAppBar: Titolo Text costruito.');
                 break;
               case 'leading':
-              // Il leading wrapper contiene un solo child (es. Icon)
+                if (kDebugMode) {
+                  print('DEBUG _buildAppBar: Tentativo di costruire Leading Widget.');
+                }
+
                 if (childDescription.properties.containsKey('child') && childDescription.properties['child'] is Map<String, dynamic>) {
-                  leadingWidget = build(WidgetDescription.fromJson(childDescription.properties['child'] as Map<String, dynamic>), context);
-                  if (kDebugMode) print('DEBUG _buildAppBar: Leading Widget costruito.');
+                  try {
+                    leadingWidget = build(WidgetDescription.fromJson(childDescription.properties['child'] as Map<String, dynamic>), context);
+                    if (kDebugMode) print('DEBUG _buildAppBar: Leading Widget (Icona) costruito con successo: $leadingWidget ');
+                  } catch (e, st) {
+                    if (kDebugMode) {
+                      print('!!! ERRORE _buildAppBar: Eccezione durante la costruzione del leading widget: $e');
+                      print(st);
+                    }
+                    leadingWidget = const Icon(Icons.error_outline, color: Colors.red); // Icona di errore visibile
+                  }
+                } else {
+                  if (kDebugMode) print('DEBUG _buildAppBar: "child" non trovato o non è una mappa valida nelle proprietà di "leading".');
                 }
                 break;
               case 'actions':
@@ -2443,7 +2458,7 @@ static Widget _buildScaffold(Map<String, dynamic> properties, BuildContext conte
       }
 
       // Verifica il colore di sfondo
-      Color? bgColor = _parseColor(properties['backgroundcolor']); // Assicurati che sia lowercase qui
+      Color? bgColor = _parseColor(properties['backgroundColor']);
       if (kDebugMode) {
         print('DEBUG _buildAppBar: Colore di sfondo parsato: $bgColor');
       }
@@ -2849,14 +2864,51 @@ static Widget _buildIcon(Map<String, dynamic> properties, BuildContext context) 
     }).toList() ?? [];
   }
 
-   static Color? _parseColor(String? colorString) {
-    if (colorString == null || !colorString.startsWith('#')) return null;
-    colorString = colorString.substring(1);
-    if (colorString.length == 6) {
-      return Color(int.parse('0xFF$colorString'));
+  static Color? _parseColor(String? colorString) {
+    if (colorString == null || colorString.isEmpty) {
+      if (kDebugMode) print("DEBUG _parseColor: Stringa colore in input è null o vuota.");
+      return null;
     }
-    // Return a default color in case of parsing failure
-    return Colors.black;
+
+    // Rimuovi il '#' se presente
+    String cleanColorString = colorString.trim();
+    if (cleanColorString.startsWith('#')) {
+      cleanColorString = cleanColorString.substring(1);
+    }
+
+    // Gestione dei colori esadecimali RRGGBB (aggiungiamo l'alpha FF)
+    if (cleanColorString.length == 6) {
+      cleanColorString = 'FF' + cleanColorString; // Aggiungi FF per l'opacità
+    }
+
+    // Ora la stringa dovrebbe essere AARRGGBB
+    if (cleanColorString.length == 8) {
+      try {
+        // *** MODIFICA CRUCIALE QUI: Aggiunto radix: 16 ***
+        return Color(int.parse(cleanColorString, radix: 16));
+      } catch (e) {
+        if (kDebugMode) {
+          print("ERRORE _parseColor: Impossibile parsare stringa esadecimale '$colorString' ($cleanColorString): $e");
+        }
+        return null; // Ritorna null in caso di errore di parsing
+      }
+    }
+
+    // Aggiungi qui la gestione per nomi di colori semplici come "red", "blue", ecc.
+    // Se non l'hai già fatto, altrimenti il tuo sistema capirà solo #RRGGBB.
+    switch (cleanColorString.toLowerCase()) {
+      case 'white': return Colors.white;
+      case 'black': return Colors.black;
+      case 'red': return Colors.red;
+      case 'blue': return Colors.blue;
+      case 'green': return Colors.green;
+    // Aggiungi altri colori che vuoi supportare
+      default:
+        if (kDebugMode) {
+          print("WARNING _parseColor: Formato colore non supportato o nome non riconosciuto: '$colorString'");
+        }
+        return null; // Ritorna null se non è né esadecimale valido né un nome riconosciuto
+    }
   }
 
   Widget _parseText(Map<String, dynamic> json, BuildContext context) {
@@ -2947,7 +2999,7 @@ Widget _parseWidget(Map<String, dynamic> json, BuildContext context) {
       return _buildSingleChildScrollView(json, context);
     case 'Scaffold':
       return _buildScaffold(json, context);
-    case 'AppBar':
+    case 'appBar':
       return _parseAppBar(json, context);
     default:
       return const SizedBox.shrink(); // Return an empty widget for unsupported types
