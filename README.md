@@ -213,7 +213,7 @@ Dynamic ui project.
     -   `content` (String, opzionale): Il testo da condividere. Default: "Default content".
     -   Esempio XML:
     ```xml
-    <IconButton onPressed="shareContent" actionParams='{"content": "Dai un'occhiata a questa fantastica app!"}' />
+    <IconButton onPressed="shareContent" actionParams='{"content": "Dai un&apos;occhiata a questa fantastica app!"}' />
     ```
     -   **`copyToClipboard`**: Copia il testo specificato negli appunti del dispositivo e mostra una `SnackBar` di conferma.
     -   Parametri `actionParams`:
