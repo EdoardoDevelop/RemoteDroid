@@ -99,20 +99,20 @@ Dynamic ui project.
     -   `centerTitle`: Allinea il titolo al centro (`true`/`false`).
     -   `toolbarHeight`: Altezza fissa della toolbar (es. `65.0`).
     -   **Elementi Figli (Contenuti):**
-      -   **Titolo (`Text`):**
-        -   Un tag `Text` con le sue proprietà, posizionato come primo figlio.
-        -   Esempio: `<Text text="Mio Titolo" fontSize="20" color="#FFFFFF" />`
-        -   **Widget Principale (`leading`):**
-        -   Contenitore per un singolo widget a sinistra (es. icona menu, pulsante indietro).
-        -   Esempio:
+    -   **Titolo (`Text`):**
+    -   Un tag `Text` con le sue proprietà, posizionato come primo figlio.
+    -   Esempio: `<Text text="Mio Titolo" fontSize="20" color="#FFFFFF" />`
+    -   **Widget Principale (`leading`):**
+    -   Contenitore per un singolo widget a sinistra (es. icona menu, pulsante indietro).
+    -   Esempio:
     ```xml
     <leading>
       <Icon icon="Icons.menu" color="#FFFFFF" size="24" />
     </leading>
     ```
     -   **Azioni (`actions`):**
-      -   Contenitore per una lista di widget a destra (es. pulsanti icona).
-        -   Esempio:
+    -   Contenitore per una lista di widget a destra (es. pulsanti icona).
+    -   Esempio:
     ```xml
     <actions>
       <IconButton icon="Icons.search" color="#FFFFFF" size="24" />
