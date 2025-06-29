@@ -1,0 +1,90 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:remotedroid/dynamic_widget_builder.dart';
+import 'package:http/http.dart' as http; // Importa il pacchetto http
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Dynamic UI Example App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const DynamicScreen(), // Usiamo un nuovo widget per gestire il caricamento dinamico
+    );
+  }
+}
+
+class DynamicScreen extends StatefulWidget {
+  const DynamicScreen({super.key});
+
+  @override
+  State<DynamicScreen> createState() => _DynamicScreenState();
+}
+
+class _DynamicScreenState extends State<DynamicScreen> {
+  // L'URL dove si trova il tuo file XML remoto
+  // *** SOSTITUISCI QUESTO CON L'URL DEL TUO FILE XML REALE! ***
+  final String remoteXmlUrl = 'http://192.168.1.100/remotedroid';
+
+  final bool x = false;
+
+
+  Future<String> _fetchRemoteContent(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        return response.body;
+      } else {
+        throw Exception('Failed to load content from $url. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching content from $url: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar:AppBar( title: const Text('Dynamic UI Example App')),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            FutureBuilder<String>(
+              future: _fetchRemoteContent(remoteXmlUrl),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'Errore nel caricare l\'XML: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  );
+                } else if (snapshot.hasData) {
+                  // Se l'XML è stato caricato, lo passiamo a DynamicWidgetBuilder
+                  return DynamicWidgetBuilder.buildFromXml(snapshot.data!, context);
+                } else {
+                  return const Center(child: Text('Nessun XML disponibile.'));
+                }
+              },
+            ),
+
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,90 @@
+# remotedroid
+
+Dynamic ui project.
+
+## Tag XML
+-   **Widget di Base e Layout:**
+    -   `Text`
+    -   `Container`
+    -   `Column`
+    -   `Row`
+    -   `Expanded`
+    -   `Padding`
+    -   `Center`
+    -   `Align`
+    -   `SizedBox`
+    -   `Stack`
+    -   `Positioned`
+    -   `Card`
+    -   `Divider`
+    -   `Icon`
+    -   `Image`
+-   **Widget di Scorrimento e Liste:**
+    -   `ListView`
+    -   `GridView`
+    -   `SingleChildScrollView`
+    -   `CustomScrollView`
+    -   `Scrollable`
+    -   `Scrollbar`
+    -   `ScrollConfiguration`
+    -   `ScrollNotification`
+    -   `ScrollController`
+-   **Widget Adattivi e di Overflow:**
+    -   `AspectRatio`
+    -   `FittedBox`
+    -   `FractionallySizedBox`
+    -   `LimitedBox`
+    -   `Offstage`
+    -   `OverflowBox`
+    -   `SizedOverflowBox`
+    -   `UnconstrainedBox`
+    -   `ConstrainedBox`
+-   **Widget di Trasformazione ed Effetti:**
+    -   `Transform`
+    -   `CustomPaint`
+    -   `ClipPath`
+    -   `ClipRect`
+    -   `ClipOval`
+    -   `Opacity`
+    -   `BackdropFilter`
+    -   `DecoratedBox`
+    -   `FractionalTranslation`
+    -   `RotatedBox`
+-   **Widget di Navigazione e Struttura App:**
+    -   `Scaffold`
+    -   `AppBar`
+    -   `BottomNavigationBar`
+    -   `Drawer`
+    -   `TabBar`
+    -   `TabBarView`
+-   **Widget Interattivi e di Input:**
+    -   `RaisedButton` (ora `ElevatedButton`)
+    -   `FlatButton` (ora `TextButton`)
+    -   `OutlineButton` (ora `OutlinedButton`)
+    -   `IconButton`
+    -   `FloatingActionButton`
+    -   `TextButton` (ripetuto nel codice, ma corretto)
+    -   `Slider`
+    -   `Switch`
+    -   `Checkbox`
+    -   `Radio`
+    -   `DropdownButton`
+    -   `Chip`
+    -   `Tooltip`
+-   **Widget di Progresso:**
+    -   `CircularProgressIndicator`
+    -   `LinearProgressIndicator`
+-   **Widget di Dialogo e Messaggi:**
+    -   `AlertDialog`
+    -   `SnackBar`
+    -   `BottomSheet`
+-   **Widget Animati:**
+    -   `AnimatedContainer`
+    -   `FadeTransition`
+    -   `ScaleTransition`
+    -   `SlideTransition`
+-   **Widget Speciali:**
+    -   `body` (questo non è un widget Flutter standard, ma un tag
+        personalizzato che il tuo `WidgetBuilder` interpreta per creare
+        un `Container` con specifiche proprietà per il corpo della
+        schermata).
