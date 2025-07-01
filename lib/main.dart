@@ -1,12 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:remotedroid/dynamic_widget_builder.dart';
-import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Importa shared_preferences
-import 'package:permission_handler/permission_handler.dart'; // Importa permission_handler
-import 'package:mobile_scanner/mobile_scanner.dart'; // Importa mobile_scanner
-import 'dart:convert'; // Per la decodifica JSON
+import 'package:remotedroid/dynamic_widget_builder.dart'; // Assicurati che il percorso sia corretto
+import 'package:http/http.dart' as http; // Per le richieste HTTP
+import 'package:xml/xml.dart'; // Per il parsing XML
+
+import 'package:remotedroid/app_config.dart'; // Nuovo file per AppSettings e SettingsService
+import 'package:remotedroid/setup_screens.dart'; // Nuovo file per SettingsScreen e QRScannerPage
 
 // Definisci una GlobalKey per il Navigator principale
 // È cruciale per la navigazione affidabile da qualsiasi punto dell'app
@@ -16,35 +15,8 @@ void main() {
   runApp(const MyApp());
 }
 
-// Classe per le impostazioni dell'app
-class AppSettings {
-  final String remoteXmlRoot;
-  final String remoteXmlRoutesUrl;
-  final String? password; // Campo password aggiunto, può essere nullo
-
-  AppSettings({
-    required this.remoteXmlRoot,
-    required this.remoteXmlRoutesUrl,
-    this.password, // Rendi il parametro opzionale e nullable
-  });
-
-  // Metodo per convertire le impostazioni in una mappa per shared_preferences
-  Map<String, dynamic> toJson() => {
-    'remoteXmlRoot': remoteXmlRoot,
-    'remoteXmlRoutesUrl': remoteXmlRoutesUrl,
-    'password': password, // Includi la password
-  };
-
-  // Metodo per creare le impostazioni da una mappa (es. da shared_preferences o QR)
-  factory AppSettings.fromJson(Map<String, dynamic> json) {
-    return AppSettings(
-      remoteXmlRoot: json['remoteXmlRoot'] as String,
-      remoteXmlRoutesUrl: json['remoteXmlRoutesUrl'] as String,
-      password: json['password'] as String?, // Leggi la password, può essere nulla
-    );
-  }
-}
-
+/// MyApp è il widget radice dell'applicazione.
+/// Gestisce il caricamento asincrono delle rotte dinamiche all'avvio.
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -63,41 +35,10 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _appSettingsFuture = _loadAppSettings();
+    _appSettingsFuture = SettingsService.loadAppSettings(); // Carica le impostazioni usando il nuovo servizio
   }
 
-  Future<AppSettings?> _loadAppSettings() async {
-    if (kDebugMode) print('SETTINGS_DEBUG: Caricamento impostazioni dall\'archiviazione locale...');
-    final prefs = await SharedPreferences.getInstance();
-    final String? settingsJson = prefs.getString('appSettings');
-
-    if (settingsJson != null) {
-      if (kDebugMode) print('SETTINGS_DEBUG: Impostazioni trovate: $settingsJson');
-      try {
-        final Map<String, dynamic> jsonMap = json.decode(settingsJson);
-        final settings = AppSettings.fromJson(jsonMap);
-        _currentSettings = settings; // Salva le impostazioni caricate
-        if (kDebugMode) print('SETTINGS_DEBUG: Impostazioni caricate con successo.');
-        return settings;
-      } catch (e) {
-        if (kDebugMode) print('SETTINGS_ERROR: Errore nel parsing delle impostazioni salvate: $e');
-        await prefs.remove('appSettings'); // Rimuovi le impostazioni corrotte
-        return null;
-      }
-    }
-    if (kDebugMode) print('SETTINGS_DEBUG: Nessuna impostazione trovata.');
-    return null;
-  }
-
-  Future<void> _saveAppSettings(AppSettings settings) async {
-    if (kDebugMode) print('SETTINGS_DEBUG: Salvataggio impostazioni: ${settings.toJson()}');
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('appSettings', json.encode(settings.toJson()));
-    _currentSettings = settings; // Aggiorna le impostazioni correnti
-    if (kDebugMode) print('SETTINGS_DEBUG: Impostazioni salvate con successo.');
-  }
-
-  Future<Map<String, String>> _loadDynamicRouteUrls(String remoteXmlRoutesUrl) async {
+  Future<Map<String, String>> _loadDynamicRouteUrls(String remoteXmlRoot, String remoteXmlRoutesUrl) async {
     if (kDebugMode) print('DEBUG: Inizio _loadDynamicRouteUrls. URL: $remoteXmlRoutesUrl');
     try {
       final response = await http.get(Uri.parse(remoteXmlRoutesUrl));
@@ -188,12 +129,12 @@ class _MyAppState extends State<MyApp> {
           } else {
             // Nessuna impostazione trovata o errore, mostra la schermata di configurazione
             return MaterialApp(
-              title: 'RemoteDroid', // Titolo modificato qui
+              title: 'RemoteDroid',
               theme: ThemeData(primarySwatch: Colors.blue),
               navigatorKey: navigatorKey, // Assegna la GlobalKey al MaterialApp per la navigazione
               home: SettingsScreen(
                 onSave: (settings) async {
-                  await _saveAppSettings(settings);
+                  await SettingsService.saveAppSettings(settings); // Salva usando il nuovo servizio
                   setState(() {
                     _appSettingsFuture = Future.value(settings); // Aggiorna il future per innescare rebuild
                   });
@@ -216,7 +157,7 @@ class _MyAppState extends State<MyApp> {
   Widget _buildAppWithLoadedSettings() {
     // Ora che le impostazioni sono caricate, possiamo caricare le rotte dinamiche
     return FutureBuilder<Map<String, String>>(
-      future: _loadDynamicRouteUrls(_currentSettings!.remoteXmlRoutesUrl),
+      future: _loadDynamicRouteUrls(_currentSettings!.remoteXmlRoot, _currentSettings!.remoteXmlRoutesUrl),
       builder: (context, routesSnapshot) {
         if (routesSnapshot.connectionState == ConnectionState.done) {
           if (routesSnapshot.hasData) {
@@ -325,9 +266,9 @@ class _MyAppState extends State<MyApp> {
                       ElevatedButton(
                         onPressed: () {
                           // Rimuovi le impostazioni e riavvia la schermata di configurazione
-                          _saveAppSettings(AppSettings(remoteXmlRoot: '', remoteXmlRoutesUrl: '')).then((_) {
+                          SettingsService.saveAppSettings(AppSettings(remoteXmlRoot: '', remoteXmlRoutesUrl: '')).then((_) {
                             setState(() {
-                              _appSettingsFuture = _loadAppSettings(); // Ricarica per andare alla configurazione
+                              _appSettingsFuture = SettingsService.loadAppSettings(); // Ricarica per andare alla configurazione
                               _hasNavigatedInitially = false;
                             });
                           });
@@ -356,259 +297,6 @@ class _MyAppState extends State<MyApp> {
           ),
         );
       },
-    );
-  }
-}
-
-// --- Nuova Schermata di Configurazione ---
-class SettingsScreen extends StatefulWidget {
-  final Function(AppSettings) onSave;
-
-  const SettingsScreen({super.key, required this.onSave});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  final TextEditingController _rootUrlController = TextEditingController();
-  final TextEditingController _routesUrlController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController(); // Controller per la password
-
-  bool _isScanning = false;
-  bool _obscurePassword = true; // Stato per nascondere/mostrare la password
-
-  @override
-  void dispose() {
-    _rootUrlController.dispose();
-    _routesUrlController.dispose();
-    _passwordController.dispose(); // Dispose anche per la password
-    super.dispose();
-  }
-
-  Future<void> _scanQrCode() async {
-    // Richiedi il permesso della fotocamera prima di avviare lo scanner
-    var status = await Permission.camera.request();
-    if (status.isGranted) {
-      setState(() {
-        _isScanning = true;
-      });
-
-      // Avvia lo scanner QR
-      final result = await navigatorKey.currentState?.push<String>(
-        MaterialPageRoute(builder: (context) => const QRScannerPage()),
-      );
-
-      setState(() {
-        _isScanning = false;
-      });
-
-      if (result != null) {
-        try {
-          final Map<String, dynamic> qrData = json.decode(result);
-          final settings = AppSettings.fromJson(qrData);
-          _rootUrlController.text = settings.remoteXmlRoot;
-          _routesUrlController.text = settings.remoteXmlRoutesUrl;
-          _passwordController.text = settings.password ?? ''; // Imposta la password (o stringa vuota se null)
-
-          // Salva e notifica il cambio di stato per riavviare l'app
-          widget.onSave(settings);
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Impostazioni caricate da QR! Riavvio app...')),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Errore nel formato QR: $e')),
-          );
-        }
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permesso fotocamera negato! Impossibile scansionare QR.')),
-      );
-    }
-  }
-
-  void _saveSettingsManually() {
-    if (_rootUrlController.text.isEmpty || _routesUrlController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Compila tutti i campi.')),
-      );
-      return;
-    }
-
-    final settings = AppSettings(
-      remoteXmlRoot: _rootUrlController.text,
-      remoteXmlRoutesUrl: _routesUrlController.text,
-      password: _passwordController.text.isEmpty ? null : _passwordController.text, // Passa la password (o null se vuota)
-    );
-    widget.onSave(settings);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Impostazioni salvate manualmente! Riavvio app...')),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configurazione RemoteDroid', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blueAccent,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Benvenuto! Sembra sia il tuo primo avvio o le impostazioni sono mancanti. Configura l\'app compilando i seguenti campi o scansionando un QR Code.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, height: 1.5),
-            ),
-            const SizedBox(height: 30),
-            Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  IconButton.filled(
-                    iconSize: 30,
-                    onPressed: _isScanning ? null : _scanQrCode,
-                    padding: const EdgeInsets.all(10.0),
-                    style: IconButton.styleFrom(backgroundColor: Colors.blueAccent),
-                    icon: _isScanning
-                        ? const SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    ):
-                    const Icon(Icons.qr_code_scanner, color: Colors.white ),
-                  ),
-                ]
-            ),
-            const SizedBox(height: 30),
-            TextField(
-              controller: _rootUrlController,
-              decoration: const InputDecoration(
-                labelText: 'URL Root Server (es. https://www.example.com/api)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.language),
-              ),
-              keyboardType: TextInputType.url,
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: _routesUrlController,
-              decoration: const InputDecoration(
-                labelText: 'URL File Routes (es. https://www.example.com/api/app_routes.xml)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.link),
-              ),
-              keyboardType: TextInputType.url,
-            ),
-            const SizedBox(height: 15), // Spazio per il nuovo campo password
-            TextField(
-              controller: _passwordController,
-              obscureText: _obscurePassword, // Controlla la visibilità
-              decoration: InputDecoration(
-                labelText: 'Password (opzionale)',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.lock),
-                suffixIcon: IconButton( // Pulsante occhiolino
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword; // Inverti la visibilità
-                    });
-                  },
-                ),
-              ),
-              keyboardType: TextInputType.text,
-            ),
-            const SizedBox(height: 30),
-            Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  IconButton.filled(
-                    iconSize: 30,
-                    onPressed: _isScanning ? null : _saveSettingsManually,
-                    padding: const EdgeInsets.all(10.0),
-                    style: IconButton.styleFrom(backgroundColor: Colors.blueAccent),
-                    icon:  const Icon(Icons.save, color: Colors.white),
-                  ),
-                ]
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Nota: Dopo il salvataggio, l\'app si riavvierà con le nuove impostazioni.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// --- Nuova Pagina per lo Scanner QR ---
-class QRScannerPage extends StatefulWidget {
-  const QRScannerPage({super.key});
-
-  @override
-  State<QRScannerPage> createState() => _QRScannerPageState();
-}
-
-class _QRScannerPageState extends State<QRScannerPage> {
-  final MobileScannerController controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
-    facing: CameraFacing.back,
-    torchEnabled: false,
-  );
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scansiona QR Code'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: controller,
-            onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final String? qrCodeValue = barcodes.first.rawValue;
-                if (qrCodeValue != null) {
-                  if (kDebugMode) print('QR_SCANNER: Valore QR Code rilevato: $qrCodeValue');
-                  // Una volta rilevato, torna indietro con il valore
-                  Navigator.of(context).pop(qrCodeValue);
-                }
-              }
-            },
-          ),
-          Center(
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.7,
-              height: MediaQuery.of(context).size.width * 0.7,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.red, width: 3),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
