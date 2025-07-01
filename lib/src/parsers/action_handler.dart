@@ -268,7 +268,7 @@ class ActionHandler {
     );
   }
 
-  /// Scans a QR code (requires integration with a QR code scanning package).
+  /// TODO: Scans a QR code (requires integration with a QR code scanning package).
   void _scanQRCode(Map<String, dynamic>? params) {
     // Implement QR Code scanning logic here
     // Example using qr_code_scanner package:
