@@ -20,20 +20,19 @@ void main() {
 class AppSettings {
   final String remoteXmlRoot;
   final String remoteXmlRoutesUrl;
-  // Puoi aggiungere altre impostazioni qui
-  // final String anotherSetting;
+  final String? password; // Campo password aggiunto, può essere nullo
 
   AppSettings({
     required this.remoteXmlRoot,
     required this.remoteXmlRoutesUrl,
-    // required this.anotherSetting,
+    this.password, // Rendi il parametro opzionale e nullable
   });
 
   // Metodo per convertire le impostazioni in una mappa per shared_preferences
   Map<String, dynamic> toJson() => {
     'remoteXmlRoot': remoteXmlRoot,
     'remoteXmlRoutesUrl': remoteXmlRoutesUrl,
-    // 'anotherSetting': anotherSetting,
+    'password': password, // Includi la password
   };
 
   // Metodo per creare le impostazioni da una mappa (es. da shared_preferences o QR)
@@ -41,7 +40,7 @@ class AppSettings {
     return AppSettings(
       remoteXmlRoot: json['remoteXmlRoot'] as String,
       remoteXmlRoutesUrl: json['remoteXmlRoutesUrl'] as String,
-      // anotherSetting: json['anotherSetting'] as String,
+      password: json['password'] as String?, // Leggi la password, può essere nulla
     );
   }
 }
@@ -189,7 +188,7 @@ class _MyAppState extends State<MyApp> {
           } else {
             // Nessuna impostazione trovata o errore, mostra la schermata di configurazione
             return MaterialApp(
-              title: 'Dynamic App Setup',
+              title: 'RemoteDroid', // Titolo modificato qui
               theme: ThemeData(primarySwatch: Colors.blue),
               navigatorKey: navigatorKey, // Assegna la GlobalKey al MaterialApp per la navigazione
               home: SettingsScreen(
@@ -374,14 +373,16 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _rootUrlController = TextEditingController();
   final TextEditingController _routesUrlController = TextEditingController();
-  // Puoi aggiungere altri controller per altre impostazioni
+  final TextEditingController _passwordController = TextEditingController(); // Controller per la password
 
   bool _isScanning = false;
+  bool _obscurePassword = true; // Stato per nascondere/mostrare la password
 
   @override
   void dispose() {
     _rootUrlController.dispose();
     _routesUrlController.dispose();
+    _passwordController.dispose(); // Dispose anche per la password
     super.dispose();
   }
 
@@ -408,7 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           final settings = AppSettings.fromJson(qrData);
           _rootUrlController.text = settings.remoteXmlRoot;
           _routesUrlController.text = settings.remoteXmlRoutesUrl;
-          // Imposta altri campi se presenti nel QR
+          _passwordController.text = settings.password ?? ''; // Imposta la password (o stringa vuota se null)
 
           // Salva e notifica il cambio di stato per riavviare l'app
           widget.onSave(settings);
@@ -432,7 +433,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _saveSettingsManually() {
     if (_rootUrlController.text.isEmpty || _routesUrlController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Compila tutti i campi URL.')),
+        const SnackBar(content: Text('Compila tutti i campi.')),
       );
       return;
     }
@@ -440,7 +441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = AppSettings(
       remoteXmlRoot: _rootUrlController.text,
       remoteXmlRoutesUrl: _routesUrlController.text,
-      // Passa altri campi qui
+      password: _passwordController.text.isEmpty ? null : _passwordController.text, // Passa la password (o null se vuota)
     );
     widget.onSave(settings);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -467,22 +468,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 30),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                IconButton.filled(
-                  iconSize: 30,
-                  onPressed: _isScanning ? null : _scanQrCode,
-                  padding: const EdgeInsets.all(10.0),
-                  style: IconButton.styleFrom(backgroundColor: Colors.blueAccent),
-                  icon: _isScanning
-                      ? const SizedBox(
-                    width: 30,
-                    height: 30,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                  ):
-                  const Icon(Icons.qr_code_scanner, color: Colors.white ),
-                ),
-              ]
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  IconButton.filled(
+                    iconSize: 30,
+                    onPressed: _isScanning ? null : _scanQrCode,
+                    padding: const EdgeInsets.all(10.0),
+                    style: IconButton.styleFrom(backgroundColor: Colors.blueAccent),
+                    icon: _isScanning
+                        ? const SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    ):
+                    const Icon(Icons.qr_code_scanner, color: Colors.white ),
+                  ),
+                ]
             ),
             const SizedBox(height: 30),
             TextField(
@@ -504,18 +505,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               keyboardType: TextInputType.url,
             ),
+            const SizedBox(height: 15), // Spazio per il nuovo campo password
+            TextField(
+              controller: _passwordController,
+              obscureText: _obscurePassword, // Controlla la visibilità
+              decoration: InputDecoration(
+                labelText: 'Password (opzionale)',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
+                suffixIcon: IconButton( // Pulsante occhiolino
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword; // Inverti la visibilità
+                    });
+                  },
+                ),
+              ),
+              keyboardType: TextInputType.text,
+            ),
             const SizedBox(height: 30),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                IconButton.filled(
-                  iconSize: 30,
-                  onPressed: _isScanning ? null : _saveSettingsManually,
-                  padding: const EdgeInsets.all(10.0),
-                  style: IconButton.styleFrom(backgroundColor: Colors.blueAccent),
-                  icon:  const Icon(Icons.save, color: Colors.white),
-                ),
-              ]
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  IconButton.filled(
+                    iconSize: 30,
+                    onPressed: _isScanning ? null : _saveSettingsManually,
+                    padding: const EdgeInsets.all(10.0),
+                    style: IconButton.styleFrom(backgroundColor: Colors.blueAccent),
+                    icon:  const Icon(Icons.save, color: Colors.white),
+                  ),
+                ]
             ),
             const SizedBox(height: 20),
             const Text(
