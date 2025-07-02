@@ -20,14 +20,14 @@ class WidgetBuilder {
 
   static Widget build(WidgetDescription description, BuildContext context) {
     // Check if the widget type has a custom builder registered
-    print(
-        'Building widget: ${description.type} with properties: ${description.properties}');
+    print( 'Building widget: ${description.type} with properties: ${description.properties}');
 
     if (_customBuilders.containsKey(description.type)) {
       return _customBuilders[description.type]!(description.properties);
     }
 
     try {
+      print( 'Building widget step2: ${description.type}');
       switch (description.type) {
         case 'Text':
           return _buildText(description.properties, context);
@@ -166,11 +166,11 @@ class WidgetBuilder {
           return _buildGridView(description.properties, context);
         case 'Card': 
           return _buildCard(description.properties, context);
-        case 'RaisedButton': 
+        case 'ElevatedButton':
           return _buildElevatedButton(description.properties, context);
-        case 'RotatedBox': 
+        case 'RotatedBox':
           return _buildRotatedBox(description.properties, context);
-        case 'FlatButton': 
+        case 'FlatButton':
           return _buildTextButton(description.properties, context);
         case 'OutlineButton': 
           return _buildOutlinedButton(description.properties, context);  
@@ -659,32 +659,73 @@ static Widget _buildListView(Map<String, dynamic> properties, BuildContext conte
                 return AxisDirection.down;
         }
     }
-  
 
 
 
-    static Widget _buildBody(Map<String, dynamic> properties, BuildContext context) {
-      
-      try {
+
+  static Widget _buildBody(Map<String, dynamic> properties, BuildContext context) {
+    try {
+      // Base container properties
+      final color = _parseColor(properties['backgroundColor']) ?? Colors.white;
+      final padding = _parsePadding(properties['padding']) ?? const EdgeInsets.all(16.0);
+      final margin = _parsePadding(properties['margin']);
+      final width = properties['width'] != null ? double.tryParse(properties['width'].toString()) : null;
+      final height = properties['height'] != null ? double.tryParse(properties['height'].toString()) : null;
+      final constraints = properties['constraints'] != null ? _parseBoxConstraints(properties['constraints']) : null;
+      final alignment = _parseAlignment(properties['alignment']);
+      final key = properties['key'] != null ? Key(properties['key']) : null;
+
+      // Handle children
+      if (properties['children'] != null && properties['children'] is List) {
+        final children = _buildChildren(properties['children'], context);
+
         return Container(
-          key: properties['key'] != null ? Key(properties['key']) : null,
-          color: _parseColor(properties['backgroundColor']) ?? Colors.white,
-          padding: _parsePadding(properties['padding']) ?? const EdgeInsets.all(16.0),
-          margin: _parsePadding(properties['margin']),
-          width: properties['width'] != null ? double.tryParse(properties['width'].toString()) : null,
-          height: properties['height'] != null ? double.tryParse(properties['height'].toString()) : null,
-          constraints: properties['constraints'] != null ? _parseBoxConstraints(properties['constraints']) : null,
-          alignment: _parseAlignment(properties['alignment']),
-          child: properties['child'] != null
-              ? build(WidgetDescription.fromJson(properties['child']), context)
-              : const SizedBox.shrink(), // Fallback if no child is provided
+          key: key,
+          color: color,
+          padding: padding,
+          margin: margin,
+          width: width,
+          height: height,
+          constraints: constraints,
+          alignment: alignment,
+          child: Column( // Default to Column
+            children: children,
+          ),
         );
-      } catch (e) {
-        // Return a placeholder in case of an error
-        print('Error building Body widget: $e');
-        return const SizedBox.shrink(); // Fallback if the Body fails to build
       }
+      // Handle single child
+      else if (properties['child'] != null) {
+        return Container(
+          key: key,
+          color: color,
+          padding: padding,
+          margin: margin,
+          width: width,
+          height: height,
+          constraints: constraints,
+          alignment: alignment,
+          child: build(WidgetDescription.fromJson(properties['child']), context),
+        );
+      }
+      // Empty container
+      else {
+        return Container(
+          key: key,
+          color: color,
+          padding: padding,
+          margin: margin,
+          width: width,
+          height: height,
+          constraints: constraints,
+          alignment: alignment,
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error building Body widget: $e');
+      debugPrintStack(stackTrace: stackTrace);
+      return ErrorWidget(e);
     }
+  }
 
 
     static BoxConstraints _parseBoxConstraints(dynamic constraints) {
@@ -1062,76 +1103,72 @@ static Widget _buildRow(Map<String, dynamic> properties, BuildContext context) {
     // Start Generation Here
         // Start of Selection
   static Widget _buildElevatedButton(Map<String, dynamic> properties, BuildContext context) {
+    try {
+      // 1. Parse delle proprietà base con valori di default
+      final String text = properties['text']?.toString() ?? 'Button';
+      final Color backgroundColor = _parseColor(properties['backgroundColor']) ?? Theme.of(context).primaryColor;
+      final Color textColor = _parseColor(properties['textColor']) ?? Colors.white;
+      final double fontSize = double.tryParse(properties['fontSize']?.toString() ?? '14') ?? 14;
+      final double borderRadius = double.tryParse(properties['borderRadius']?.toString() ?? '8') ?? 8;
+      final double elevation = double.tryParse(properties['elevation']?.toString() ?? '2') ?? 2;
+      final EdgeInsetsGeometry padding = _parsePadding(properties['padding']) ??
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+
+      // 2. Gestione più robusta dell'azione
+      WidgetAction? action;
+      Map<String, dynamic>? actionParams;
+
+      final onPressedValue = properties['onPressed'];
+      if (onPressedValue is String) {
+        action = _mapStringToWidgetAction(onPressedValue);
+      } else if (onPressedValue is Map) {
+        // Se onPressed è già una mappa (caso raro)
+        actionParams = Map<String, dynamic>.from(onPressedValue);
+      }
+
+      // 3. Parsing avanzato degli actionParams
+      final rawActionParams = properties['actionParams'];
+      if (rawActionParams != null) {
+        if (rawActionParams is Map) {
+          actionParams = Map<String, dynamic>.from(rawActionParams);
+        } else if (rawActionParams is String) {
           try {
-            // Validate properties
-            if (properties == null) {
-              print('Error: properties map is null for ElevatedButton');
-              return const SizedBox.shrink();
-            }
-    
-            // Extract properties with default values
-            final onPressedString = properties['onPressed'];
-            if (onPressedString == null || !(onPressedString is String)) {
-              print('Error: onPressed is missing or is not a string for ElevatedButton');
-              return const SizedBox.shrink();
-            }
-    
-            final backgroundColor = _parseColor(properties['backgroundColor']) ?? Colors.blue;
-            final padding = _parsePadding(properties['padding']) ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8);
-            final borderRadius = double.tryParse(properties['borderRadius']?.toString() ?? '0') ?? 0;
-            final elevation = double.tryParse(properties['elevation']?.toString() ?? '2') ?? 2;
-            final text = properties['text'] ?? 'Button';
-            final textColor = _parseColor(properties['textColor']) ?? Colors.white;
-            final fontSize = double.tryParse(properties['fontSize']?.toString() ?? '16') ?? 16;
-    
-            // Parse action parameters
-            final actionParams = properties['actionParams'] as Map<String, dynamic>?;
-    
-            // Convert the onPressed string to a WidgetAction
-            WidgetAction? action;
-            try {
-              action = WidgetAction.values.firstWhere(
-                (e) => e.toString().split('.').last == onPressedString,
-              );
-            } catch (e) {
-              print('Unsupported action "$onPressedString" for ElevatedButton');
-              action = null;
-            }
-    
-            // Initialize the ActionHandler
-            final actionHandler = ActionHandler(context);
-    
-            return ElevatedButton(
-              onPressed: action != null
-                  ? () {
-                      try {
-                        actionHandler.handleAction(action!, actionParams);
-                      } catch (e) {
-                        print('Error executing onPressed function for ElevatedButton: $e');
-                      }
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: backgroundColor,
-                padding: padding,
-                elevation: elevation,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(borderRadius),
-                ),
-              ),
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: fontSize,
-                ),
-              ),
-            );
+            actionParams = jsonDecode(rawActionParams) as Map<String, dynamic>;
           } catch (e) {
-            print('Error building ElevatedButton: $e');
-            return const SizedBox.shrink();
+            debugPrint('Failed to parse actionParams JSON: $e');
+            actionParams = {'rawValue': rawActionParams};
           }
         }
+      }
+
+      // 4. Costruzione del bottone
+      return ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: textColor,
+          padding: padding,
+          elevation: elevation,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
+        ),
+        onPressed: action != null
+            ? () => ActionHandler(context).handleAction(action!, actionParams)
+            : null,
+        child: Text(
+          text,
+          style: TextStyle(fontSize: fontSize),
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Error building ElevatedButton: $e');
+      debugPrintStack(stackTrace: stackTrace);
+      return ElevatedButton(
+        onPressed: null,
+        child: const Text('Error', style: TextStyle(color: Colors.red)),
+      );
+    }
+  }
 
 
 
@@ -1485,7 +1522,7 @@ static Widget _buildRow(Map<String, dynamic> properties, BuildContext context) {
       return Icons.person;
 
     case 'Icons.bot':
-      return Icons.person;  
+      return Icons.person;
     case 'Icons.notifications':
       return Icons.notifications;
     case 'Icons.search':
