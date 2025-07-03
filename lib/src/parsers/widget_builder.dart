@@ -665,7 +665,6 @@ static Widget _buildListView(Map<String, dynamic> properties, BuildContext conte
 
   static Widget _buildBody(Map<String, dynamic> properties, BuildContext context) {
     try {
-      // Base container properties
       final color = _parseColor(properties['backgroundColor']) ?? Colors.white;
       final padding = _parsePadding(properties['padding']) ?? const EdgeInsets.all(16.0);
       final margin = _parsePadding(properties['margin']);
@@ -675,11 +674,24 @@ static Widget _buildListView(Map<String, dynamic> properties, BuildContext conte
       final alignment = _parseAlignment(properties['alignment']);
       final key = properties['key'] != null ? Key(properties['key']) : null;
 
-      // Handle children
+      Widget content;
+
       if (properties['children'] != null && properties['children'] is List) {
         final children = _buildChildren(properties['children'], context);
+        content = Column(
+          children: children,
+        );
+      } else if (properties['child'] != null) {
+        content = build(WidgetDescription.fromJson(properties['child']), context);
+      } else {
+        content = const SizedBox.shrink();
+      }
 
-        return Container(
+      // Avvolgi il contenuto in un SingleChildScrollView per rendere possibile lo swipe
+      // indipendentemente dalla dimensione del contenuto.
+      Widget scrollableContent = SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(), // Importante per far funzionare il pull-to-refresh anche se il contenuto non riempie lo schermo
+        child: Container(
           key: key,
           color: color,
           padding: padding,
@@ -688,42 +700,30 @@ static Widget _buildListView(Map<String, dynamic> properties, BuildContext conte
           height: height,
           constraints: constraints,
           alignment: alignment,
-          child: Column( // Default to Column
-            children: children,
-          ),
-        );
-      }
-      // Handle single child
-      else if (properties['child'] != null) {
-        return Container(
-          key: key,
-          color: color,
-          padding: padding,
-          margin: margin,
-          width: width,
-          height: height,
-          constraints: constraints,
-          alignment: alignment,
-          child: build(WidgetDescription.fromJson(properties['child']), context),
-        );
-      }
-      // Empty container
-      else {
-        return Container(
-          key: key,
-          color: color,
-          padding: padding,
-          margin: margin,
-          width: width,
-          height: height,
-          constraints: constraints,
-          alignment: alignment,
-        );
-      }
+          child: content,
+        ),
+      );
+
+      // Qui avvolgiamo il contenuto scrollabile con il RefreshIndicator.
+      return RefreshIndicator(
+        onRefresh: () async {
+          String? currentRouteName = ModalRoute.of(context)?.settings.name;
+          if (currentRouteName != null) {
+            Navigator.pushReplacementNamed(context, currentRouteName);
+          }
+
+          // Potresti voler aggiungere un piccolo ritardo o una logica per indicare che il refresh è completo
+          // se l'ActionHandler non fornisce un feedback visivo immediato.
+          // Ad esempio: await Future.delayed(const Duration(milliseconds: 500));
+        },
+        child: scrollableContent,
+      );
     } catch (e, stackTrace) {
-      debugPrint('Error building Body widget: $e');
-      debugPrintStack(stackTrace: stackTrace);
-      return ErrorWidget(e);
+      if (kDebugMode) {
+        debugPrint('Error building Body widget with RefreshIndicator: $e');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      return ErrorWidget('Failed to build body: $e');
     }
   }
 
@@ -1141,6 +1141,7 @@ static Widget _buildRow(Map<String, dynamic> properties, BuildContext context) {
         }
       }
 
+      print('Executing onPressed function for TextButton: $action + $actionParams');
       // 4. Costruzione del bottone
       return ElevatedButton(
         style: ElevatedButton.styleFrom(

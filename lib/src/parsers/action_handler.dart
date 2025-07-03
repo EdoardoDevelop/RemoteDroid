@@ -186,11 +186,21 @@ class ActionHandler {
   /// Navigates to the specified route.
   void _navigate(Map<String, dynamic>? params) {
     final route = params?['route'];
-    if (route != null && route is String) {
-      Navigator.pushNamed(context, route);
-    } else {
-      if (kDebugMode) {
-        print('Navigation route is not provided or invalid.');
+    final refresh = params?['refresh'];
+    if (refresh != null && refresh is bool) {
+      String? currentRouteName = ModalRoute.of(context)?.settings.name;
+      if (currentRouteName != null) {
+        Navigator.pushReplacementNamed(context, currentRouteName);
+      }
+
+      print("Current route: $route + $currentRouteName");
+    }else {
+      if (route != null && route is String) {
+        Navigator.pushNamed(context, route);
+      } else {
+        if (kDebugMode) {
+          print('Navigation route is not provided or invalid.');
+        }
       }
     }
   }
